@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="theme-color" content="#0d3b2e"/>
+<title>Census Field Mapper</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --green: #1D9E75;
+    --green-dark: #0F6E56;
+    --green-light: #E1F5EE;
+    --amber: #BA7517;
+    --amber-light: #FAEEDA;
+    --coral: #D85A30;
+    --coral-light: #FAECE7;
+    --blue: #378ADD;
+    --blue-dark: #185FA5;
+    --red: #E24B4A;
+    --bg: #f5f7f5;
+    --surface: #ffffff;
+    --border: rgba(0,0,0,0.1);
+    --text: #1a2e1f;
+    --text2: #5a7060;
+    --header-bg: #0d3b2e;
+    --header-text: #e8f5ee;
+  }
+
+  html, body {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+  }
+
+  #app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  /* HEADER */
+  #header {
+    background: var(--header-bg);
+    color: var(--header-text);
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    z-index: 1000;
+  }
+  #header-left h1 {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+  }
+  #header-left p {
+    font-size: 11px;
+    opacity: 0.65;
+    margin-top: 1px;
+  }
+  #gps-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 999px;
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+  #gps-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #666;
+    flex-shrink: 0;
+  }
+  #gps-dot.active { background: #5DCAA5; animation: blink 1.4s infinite; }
+  #gps-dot.error { background: var(--red); }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* MAP */
+  #map {
+    flex: 1;
+    min-height: 0;
+    z-index: 1;
+  }
+
+  /* STATS BAR */
+  #stats {
+    display: flex;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .stat {
+    flex: 1;
+    padding: 7px 4px;
+    text-align: center;
+    border-right: 1px solid var(--border);
+  }
+  .stat:last-child { border-right: none; }
+  .stat-n {
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--text);
+  }
+  .stat-n.green { color: var(--green-dark); }
+  .stat-n.amber { color: var(--amber); }
+  .stat-n.coral { color: var(--coral); }
+  .stat-l {
+    font-size: 10px;
+    color: var(--text2);
+    margin-top: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+
+  /* CONTROLS */
+  #controls {
+    background: var(--surface);
+    padding: 10px 12px;
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .ctrl-btn {
+    flex: 1;
+    padding: 12px 8px;
+    border-radius: 10px;
+    border: none;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    transition: transform 0.1s, opacity 0.2s;
+    -webkit-appearance: none;
+  }
+  .ctrl-btn:active { transform: scale(0.97); }
+  #track-btn {
+    background: var(--header-bg);
+    color: #e8f5ee;
+  }
+  #track-btn.on {
+    background: var(--green-light);
+    color: var(--green-dark);
+    border: 1.5px solid #9FE1CB;
+  }
+  #mark-btn {
+    background: var(--green);
+    color: white;
+  }
+  #mark-btn:disabled {
+    background: #d0d8d2;
+    color: #8a9e90;
+    cursor: not-allowed;
+  }
+
+  /* MODE BAR */
+  #modes {
+    background: var(--bg);
+    padding: 8px 12px 10px;
+    display: flex;
+    gap: 7px;
+    flex-shrink: 0;
+  }
+  .mode-btn {
+    flex: 1;
+    padding: 8px 4px;
+    border-radius: 8px;
+    border: 1.5px solid transparent;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    background: var(--surface);
+    color: var(--text2);
+    transition: all 0.15s;
+    -webkit-appearance: none;
+  }
+  .mode-btn:active { transform: scale(0.96); }
+  .mode-btn.sel-done { background: var(--green-light); color: var(--green-dark); border-color: #9FE1CB; }
+  .mode-btn.sel-skip { background: var(--amber-light); color: var(--amber); border-color: #FAC775; }
+  .mode-btn.sel-revisit { background: var(--coral-light); color: var(--coral); border-color: #F0997B; }
+  .mode-btn.sel-clear { background: #fce8e8; color: var(--red); border-color: #F7C1C1; }
+
+  /* POPUP */
+  #popup-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 9000;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  #popup-overlay.show { display: flex; }
+  #popup-sheet {
+    background: var(--surface);
+    border-radius: 18px 18px 0 0;
+    width: 100%;
+    max-width: 480px;
+    padding: 20px 20px 32px;
+    animation: slideUp 0.25s ease;
+  }
+  @keyframes slideUp { from{transform:translateY(40px);opacity:0} to{transform:translateY(0);opacity:1} }
+  #popup-sheet h3 { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  #popup-sheet p { font-size: 13px; color: var(--text2); margin-bottom: 16px; }
+  #popup-sheet textarea {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: none;
+    height: 72px;
+    color: var(--text);
+    background: var(--bg);
+    margin-bottom: 12px;
+  }
+  #popup-sheet textarea:focus { outline: none; border-color: var(--green); }
+  .popup-actions { display: flex; gap: 10px; }
+  .popup-actions button {
+    flex: 1; padding: 12px; border-radius: 10px; border: none;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  #popup-cancel { background: var(--bg); color: var(--text2); }
+  #popup-confirm { background: var(--green); color: white; }
+
+  /* TOAST */
+  #toast {
+    position: fixed;
+    bottom: 90px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(13,59,46,0.92);
+    color: #e8f5ee;
+    padding: 9px 18px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 500;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+    z-index: 9999;
+    white-space: nowrap;
+    backdrop-filter: blur(4px);
+  }
+  #toast.show { opacity: 1; }
+
+  /* LOCATE BUTTON */
+  #locate-btn {
+    position: absolute;
+    bottom: 190px;
+    right: 12px;
+    z-index: 900;
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    border: none;
+    background: white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+  #locate-btn:active { transform: scale(0.93); }
+
+  /* Leaflet popup style override */
+  .leaflet-popup-content-wrapper {
+    border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  }
+  .leaflet-popup-content {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+    margin: 10px 14px;
+  }
+  .popup-title { font-weight: 700; font-size: 14px; margin-bottom: 2px; }
+  .popup-note { color: #666; font-style: italic; }
+  .popup-del {
+    display: inline-block;
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--red);
+    cursor: pointer;
+    border: none;
+    background: none;
+    padding: 0;
+    font-family: inherit;
+    text-decoration: underline;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <div id="header-left">
+      <h1>🗺 Census Field Mapper</h1>
+      <p>India Census 2025 — Field Survey Tool</p>
+    </div>
+    <div id="gps-pill">
+      <span id="gps-dot"></span>
+      <span id="gps-text">GPS off</span>
+    </div>
+  </div>
+
+  <div id="map"></div>
+  <button id="locate-btn" onclick="centerOnMe()" title="Center on my location">📍</button>
+
+  <div id="stats">
+    <div class="stat">
+      <div class="stat-n green" id="s-done">0</div>
+      <div class="stat-l">Done</div>
+    </div>
+    <div class="stat">
+      <div class="stat-n amber" id="s-skip">0</div>
+      <div class="stat-l">Skipped</div>
+    </div>
+    <div class="stat">
+      <div class="stat-n coral" id="s-revisit">0</div>
+      <div class="stat-l">Revisit</div>
+    </div>
+    <div class="stat">
+      <div class="stat-n" id="s-dist">0m</div>
+      <div class="stat-l">Walked</div>
+    </div>
+  </div>
+
+  <div id="controls">
+    <button class="ctrl-btn" id="track-btn" onclick="toggleTracking()">
+      ▶ Start Tracking
+    </button>
+    <button class="ctrl-btn" id="mark-btn" onclick="openMarkPopup()" disabled>
+      🏠 Mark House
+    </button>
+  </div>
+
+  <div id="modes">
+    <button class="mode-btn sel-done" id="mode-done" onclick="setMode('done')">✓ Done</button>
+    <button class="mode-btn" id="mode-skip" onclick="setMode('skip')">— Skip</button>
+    <button class="mode-btn" id="mode-revisit" onclick="setMode('revisit')">↩ Revisit</button>
+    <button class="mode-btn" id="mode-clear" onclick="confirmClear()">🗑 Clear</button>
+  </div>
+</div>
+
+<!-- Mark house popup -->
+<div id="popup-overlay">
+  <div id="popup-sheet">
+    <h3 id="popup-title">Mark House</h3>
+    <p id="popup-sub">Add an optional note for this house</p>
+    <textarea id="popup-note" placeholder="e.g. House no. 42, spoke to elderly man, needs revisit Tuesday..."></textarea>
+    <div class="popup-actions">
+      <button id="popup-cancel" onclick="closePopup()">Cancel</button>
+      <button id="popup-confirm" onclick="confirmMark()">✓ Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+let map, watchId, tracking = false;
+let currentMode = 'done';
+let pathPoints = [];
+let pathLine = null;
+let houses = [];
+let posMarker = null;
+let lastPos = null;
+let totalDist = 0;
+let houseMarkers = {};
+let houseId = 0;
+
+const modeColors = { done: '#1D9E75', skip: '#BA7517', revisit: '#D85A30' };
+const modeLabels = { done: 'Done ✓', skip: 'Skipped', revisit: 'Revisit ↩' };
+const modeEmoji = { done: '✓', skip: '—', revisit: '↩' };
+
+function makeHouseIcon(type) {
+  const c = modeColors[type];
+  const e = modeEmoji[type];
+  return L.divIcon({
+    html: `<div style="width:32px;height:32px;border-radius:50%;background:${c};color:white;
+      display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;
+      border:2.5px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);line-height:1;">${e}</div>`,
+    className: '',
+    iconSize: [32, 32],
+    iconAnchor: [16, 16]
+  });
+}
+
+function initMap() {
+  map = L.map('map', { zoomControl: false, attributionControl: false });
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 21,
+    attribution: '© OpenStreetMap'
+  }).addTo(map);
+
+  // Zoom control top-left
+  L.control.zoom({ position: 'topleft' }).addTo(map);
+
+  // Small attribution bottom-left
+  L.control.attribution({ position: 'bottomleft', prefix: '© OpenStreetMap' }).addTo(map);
+
+  map.setView([20.5937, 78.9629], 5);
+  loadSaved();
+}
+
+function toggleTracking() {
+  tracking ? stopTracking() : startTracking();
+}
+
+function startTracking() {
+  if (!navigator.geolocation) {
+    toast('❌ GPS not supported on this device');
+    return;
+  }
+  tracking = true;
+  document.getElementById('track-btn').textContent = '⏸ Pause Tracking';
+  document.getElementById('track-btn').classList.add('on');
+  document.getElementById('mark-btn').disabled = false;
+  document.getElementById('gps-dot').className = 'active';
+  document.getElementById('gps-text').textContent = 'Locating…';
+
+  watchId = navigator.geolocation.watchPosition(onPosition, onGpsError, {
+    enableHighAccuracy: true,
+    maximumAge: 3000,
+    timeout: 15000
+  });
+}
+
+function stopTracking() {
+  tracking = false;
+  if (watchId != null) navigator.geolocation.clearWatch(watchId);
+  watchId = null;
+  document.getElementById('track-btn').textContent = '▶ Resume Tracking';
+  document.getElementById('track-btn').classList.remove('on');
+  document.getElementById('mark-btn').disabled = true;
+  document.getElementById('gps-dot').className = '';
+  document.getElementById('gps-text').textContent = 'Paused';
+  toast('Tracking paused');
+}
+
+function onPosition(pos) {
+  const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+  document.getElementById('gps-dot').className = 'active';
+  document.getElementById('gps-text').textContent = '±' + Math.round(accuracy) + 'm';
+
+  const ll = [lat, lng];
+
+  if (!posMarker) {
+    posMarker = L.circleMarker(ll, {
+      radius: 10,
+      color: '#185FA5',
+      fillColor: '#378ADD',
+      fillOpacity: 0.9,
+      weight: 2.5
+    }).addTo(map).bindTooltip('You are here', { permanent: false });
+    map.setView(ll, 18);
+  } else {
+    posMarker.setLatLng(ll);
+  }
+
+  if (lastPos) {
+    const d = haversine(lastPos, ll);
+    if (d > 3) {
+      totalDist += d;
+      pathPoints.push(ll);
+      if (pathLine) {
+        pathLine.setLatLngs(pathPoints);
+      } else {
+        pathLine = L.polyline(pathPoints, {
+          color: '#378ADD', weight: 4, opacity: 0.65, lineJoin: 'round', lineCap: 'round'
+        }).addTo(map);
+      }
+      lastPos = ll;
+      updateDistStat();
+      savePath();
+    }
+  } else {
+    lastPos = ll;
+    pathPoints.push(ll);
+  }
+}
+
+function onGpsError(err) {
+  document.getElementById('gps-dot').className = 'error';
+  const msg = err.code === 1 ? 'Location permission denied. Please allow in browser settings.' :
+              err.code === 2 ? 'GPS signal unavailable' : 'GPS timeout — retrying…';
+  document.getElementById('gps-text').textContent = 'Error';
+  toast('❌ ' + msg);
+}
+
+function centerOnMe() {
+  if (lastPos) {
+    map.setView(lastPos, 18);
+  } else {
+    toast('Start tracking first to get your location');
+  }
+}
+
+// -- MARK HOUSE --
+
+function openMarkPopup() {
+  if (!lastPos) { toast('Waiting for GPS fix…'); return; }
+  const typeLabel = { done: 'Mark as Done ✓', skip: 'Mark as Skipped', revisit: 'Mark for Revisit ↩' };
+  document.getElementById('popup-title').textContent = typeLabel[currentMode];
+  document.getElementById('popup-sub').textContent = 'Tap confirm to mark your current location. Add an optional note below.';
+  document.getElementById('popup-note').value = '';
+  document.getElementById('popup-overlay').classList.add('show');
+  setTimeout(() => document.getElementById('popup-note').focus(), 300);
+}
+
+function closePopup() {
+  document.getElementById('popup-overlay').classList.remove('show');
+}
+
+function confirmMark() {
+  closePopup();
+  if (!lastPos) { toast('No GPS position yet'); return; }
+  const note = document.getElementById('popup-note').value.trim();
+  const [lat, lng] = lastPos;
+  const id = ++houseId;
+  const time = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+  const house = { id, lat, lng, type: currentMode, note, time };
+  houses.push(house);
+  addHouseMarker(house);
+  updateStats();
+  saveHouses();
+  toast('🏠 House marked as ' + modeLabels[currentMode]);
+}
+
+function addHouseMarker(h) {
+  const typeColor = modeColors[h.type];
+  const noteHtml = h.note ? `<div class="popup-note">${h.note}</div>` : '';
+  const popupHtml = `
+    <div class="popup-title" style="color:${typeColor}">${modeLabels[h.type]}</div>
+    <div>${h.time}</div>
+    ${noteHtml}
+    <button class="popup-del" onclick="deleteHouse(${h.id})">Delete this marker</button>
+  `;
+  const marker = L.marker([h.lat, h.lng], { icon: makeHouseIcon(h.type) })
+    .addTo(map)
+    .bindPopup(popupHtml, { maxWidth: 220 });
+  houseMarkers[h.id] = marker;
+}
+
+function deleteHouse(id) {
+  const idx = houses.findIndex(h => h.id === id);
+  if (idx !== -1) houses.splice(idx, 1);
+  if (houseMarkers[id]) {
+    map.removeLayer(houseMarkers[id]);
+    delete houseMarkers[id];
+  }
+  updateStats();
+  saveHouses();
+  toast('Marker deleted');
+}
+
+// -- MODE --
+function setMode(mode) {
+  currentMode = mode;
+  ['done','skip','revisit','clear'].forEach(m => {
+    document.getElementById('mode-' + m).className = 'mode-btn' + (m === mode ? ' sel-' + m : '');
+  });
+}
+
+// -- STATS --
+function updateStats() {
+  document.getElementById('s-done').textContent = houses.filter(h => h.type === 'done').length;
+  document.getElementById('s-skip').textContent = houses.filter(h => h.type === 'skip').length;
+  document.getElementById('s-revisit').textContent = houses.filter(h => h.type === 'revisit').length;
+}
+function updateDistStat() {
+  const d = totalDist;
+  document.getElementById('s-dist').textContent = d >= 1000
+    ? (d / 1000).toFixed(2) + 'km'
+    : Math.round(d) + 'm';
+}
+
+// -- CLEAR --
+function confirmClear() {
+  if (!confirm('Clear ALL markers, path, and data?\n\nThis cannot be undone.')) return;
+  houses = [];
+  pathPoints = [];
+  totalDist = 0;
+  lastPos = null;
+  houseId = 0;
+  if (tracking) stopTracking();
+  try {
+    localStorage.removeItem('census_houses');
+    localStorage.removeItem('census_path');
+    localStorage.removeItem('census_hid');
+  } catch(e) {}
+  location.reload();
+}
+
+// -- PERSISTENCE --
+function saveHouses() {
+  try {
+    localStorage.setItem('census_houses', JSON.stringify(houses));
+    localStorage.setItem('census_hid', String(houseId));
+  } catch(e) {}
+}
+function savePath() {
+  try {
+    localStorage.setItem('census_path', JSON.stringify({ pts: pathPoints, dist: totalDist }));
+  } catch(e) {}
+}
+function loadSaved() {
+  try {
+    const hRaw = localStorage.getItem('census_houses');
+    const pRaw = localStorage.getItem('census_path');
+    const idRaw = localStorage.getItem('census_hid');
+    if (idRaw) houseId = parseInt(idRaw, 10) || 0;
+
+    if (hRaw) {
+      const loaded = JSON.parse(hRaw);
+      loaded.forEach(h => {
+        houses.push(h);
+        addHouseMarker(h);
+      });
+      updateStats();
+    }
+    if (pRaw) {
+      const p = JSON.parse(pRaw);
+      if (p.pts && p.pts.length > 1) {
+        pathPoints = p.pts;
+        totalDist = p.dist || 0;
+        pathLine = L.polyline(pathPoints, {
+          color: '#378ADD', weight: 4, opacity: 0.65, lineJoin: 'round', lineCap: 'round'
+        }).addTo(map);
+        map.fitBounds(pathLine.getBounds(), { padding: [40, 40] });
+        updateDistStat();
+      }
+    }
+    if (houses.length > 0 || pathPoints.length > 0) {
+      toast('✅ Previous session loaded');
+    }
+  } catch(e) {}
+}
+
+// -- UTILS --
+function haversine(a, b) {
+  const R = 6371000;
+  const dLat = (b[0] - a[0]) * Math.PI / 180;
+  const dLng = (b[1] - a[1]) * Math.PI / 180;
+  const x = Math.sin(dLat / 2) ** 2
+    + Math.cos(a[0] * Math.PI / 180) * Math.cos(b[0] * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+}
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+// Close popup on overlay click
+document.getElementById('popup-overlay').addEventListener('click', function(e) {
+  if (e.target === this) closePopup();
+});
+
+// Keep screen awake if Wake Lock API available
+async function requestWakeLock() {
+  try {
+    if ('wakeLock' in navigator) {
+      await navigator.wakeLock.request('screen');
+    }
+  } catch(e) {}
+}
+
+window.addEventListener('load', () => {
+  initMap();
+  requestWakeLock();
+});
+</script>
+</body>
+</html>
