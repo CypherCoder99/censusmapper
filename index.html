@@ -5,370 +5,253 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#0d3b2e"/>
 <title>Census Field Mapper</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
- <script defer src="https://cloud.umami.is/script.js" data-website-id="394a13c8-01c3-4277-b238-6f2c5cdf9761"></script>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --green:#1D9E75;--green-dark:#0F6E56;--green-light:#E1F5EE;
+  --amber:#BA7517;--amber-light:#FAEEDA;
+  --coral:#D85A30;--coral-light:#FAECE7;
+  --blue:#378ADD;--red:#E24B4A;
+  --bg:#f4f6f4;--surface:#fff;--border:rgba(0,0,0,0.1);
+  --text:#1a2e1f;--text2:#5a7060;--hdr:#0d3b2e;
+}
+html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);font-family:'Segoe UI',system-ui,sans-serif}
+#app{display:flex;flex-direction:column;height:100vh;height:100dvh}
 
-  :root {
-    --green: #1D9E75;
-    --green-dark: #0F6E56;
-    --green-light: #E1F5EE;
-    --amber: #BA7517;
-    --amber-light: #FAEEDA;
-    --coral: #D85A30;
-    --coral-light: #FAECE7;
-    --blue: #378ADD;
-    --blue-dark: #185FA5;
-    --red: #E24B4A;
-    --bg: #f5f7f5;
-    --surface: #ffffff;
-    --border: rgba(0,0,0,0.1);
-    --text: #1a2e1f;
-    --text2: #5a7060;
-    --header-bg: #0d3b2e;
-    --header-text: #e8f5ee;
-  }
+/* PERMISSION SCREEN */
+#perm-screen{position:fixed;inset:0;background:var(--hdr);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;text-align:center;color:#e8f5ee}
+#perm-screen h2{font-size:22px;font-weight:700;margin-bottom:10px}
+.lead{font-size:15px;opacity:.8;line-height:1.6;margin-bottom:20px}
+.steps-box{background:rgba(255,255,255,.08);border-radius:12px;padding:14px 18px;text-align:left;margin-bottom:20px;width:100%}
+.steps-box strong{font-size:12px;opacity:.65;display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+.steps-box ol{padding-left:18px}
+.steps-box li{font-size:14px;line-height:1.9;opacity:.85}
+#perm-btn{background:var(--green);color:#fff;border:none;border-radius:12px;padding:15px 32px;font-size:16px;font-weight:700;cursor:pointer;width:100%}
+#perm-err{margin-top:12px;background:rgba(226,75,74,.2);border:1px solid rgba(226,75,74,.4);border-radius:8px;padding:12px;font-size:13px;line-height:1.5;display:none;text-align:left}
 
-  html, body {
-    height: 100%;
-    width: 100%;
-    overflow: hidden;
-    background: var(--bg);
-    font-family: 'Segoe UI', system-ui, sans-serif;
-  }
+/* CONFIG MISSING BANNER */
+#config-warn{background:#7c3400;color:#ffe8cc;padding:10px 14px;font-size:13px;text-align:center;display:none;flex-shrink:0;line-height:1.5}
 
-  #app {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    height: 100dvh;
-  }
+/* HEADER */
+#header{background:var(--hdr);color:#e8f5ee;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;z-index:1000;gap:8px}
+#header h1{font-size:14px;font-weight:600;white-space:nowrap}
+#header small{font-size:10px;opacity:.6;display:block;margin-top:1px}
+#hdr-right{display:flex;align-items:center;gap:6px;flex-shrink:0}
+#gps-pill{display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.1);border-radius:999px;padding:4px 9px;font-size:11px;cursor:pointer}
+#gps-dot{width:7px;height:7px;border-radius:50%;background:#666;flex-shrink:0}
+#gps-dot.active{background:#5DCAA5;animation:blink 1.4s infinite}
+#gps-dot.error{background:var(--red)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+#layouts-btn{background:rgba(255,255,255,.15);color:#e8f5ee;border:none;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
 
-  /* HEADER */
-  #header {
-    background: var(--header-bg);
-    color: var(--header-text);
-    padding: 10px 14px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-shrink: 0;
-    z-index: 1000;
-  }
-  #header-left h1 {
-    font-size: 16px;
-    font-weight: 600;
-    letter-spacing: 0.2px;
-  }
-  #header-left p {
-    font-size: 11px;
-    opacity: 0.65;
-    margin-top: 1px;
-  }
-  #gps-pill {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background: rgba(255,255,255,0.1);
-    border-radius: 999px;
-    padding: 5px 10px;
-    font-size: 12px;
-  }
-  #gps-dot {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: #666;
-    flex-shrink: 0;
-  }
-  #gps-dot.active { background: #5DCAA5; animation: blink 1.4s infinite; }
-  #gps-dot.error { background: var(--red); }
-  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+/* MAP */
+#map{flex:1;min-height:0;z-index:1}
 
-  /* MAP */
-  #map {
-    flex: 1;
-    min-height: 0;
-    z-index: 1;
-  }
+/* STATS */
+#stats{display:flex;background:var(--surface);border-top:1px solid var(--border);border-bottom:1px solid var(--border);flex-shrink:0}
+.stat{flex:1;padding:6px 4px;text-align:center;border-right:1px solid var(--border)}
+.stat:last-child{border-right:none}
+.stat-n{font-size:18px;font-weight:700;line-height:1;color:var(--text)}
+.g{color:var(--green-dark)}.a{color:var(--amber)}.c{color:var(--coral)}
+.stat-l{font-size:10px;color:var(--text2);margin-top:2px;text-transform:uppercase;letter-spacing:.4px}
 
-  /* STATS BAR */
-  #stats {
-    display: flex;
-    background: var(--surface);
-    border-top: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-  }
-  .stat {
-    flex: 1;
-    padding: 7px 4px;
-    text-align: center;
-    border-right: 1px solid var(--border);
-  }
-  .stat:last-child { border-right: none; }
-  .stat-n {
-    font-size: 20px;
-    font-weight: 700;
-    line-height: 1;
-    color: var(--text);
-  }
-  .stat-n.green { color: var(--green-dark); }
-  .stat-n.amber { color: var(--amber); }
-  .stat-n.coral { color: var(--coral); }
-  .stat-l {
-    font-size: 10px;
-    color: var(--text2);
-    margin-top: 2px;
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
-  }
+/* CONTROLS */
+#controls{background:var(--surface);padding:8px 10px;display:flex;gap:7px;flex-shrink:0}
+.cbtn{flex:1;padding:11px 6px;border-radius:10px;border:none;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;-webkit-appearance:none}
+.cbtn:active{opacity:.85}
+#track-btn{background:var(--hdr);color:#e8f5ee}
+#track-btn.on{background:var(--green-light);color:var(--green-dark);border:1.5px solid #9FE1CB}
+#mark-btn{background:var(--green);color:#fff}
+#mark-btn:disabled{background:#d0d8d2;color:#8a9e90;cursor:not-allowed}
+#save-btn{background:#f0f4ff;color:#2550b0;border:1.5px solid #c0ccf0;font-size:12px;padding:11px 8px;flex:.7}
 
-  /* CONTROLS */
-  #controls {
-    background: var(--surface);
-    padding: 10px 12px;
-    display: flex;
-    gap: 8px;
-    flex-shrink: 0;
-  }
-  .ctrl-btn {
-    flex: 1;
-    padding: 12px 8px;
-    border-radius: 10px;
-    border: none;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 7px;
-    transition: transform 0.1s, opacity 0.2s;
-    -webkit-appearance: none;
-  }
-  .ctrl-btn:active { transform: scale(0.97); }
-  #track-btn {
-    background: var(--header-bg);
-    color: #e8f5ee;
-  }
-  #track-btn.on {
-    background: var(--green-light);
-    color: var(--green-dark);
-    border: 1.5px solid #9FE1CB;
-  }
-  #mark-btn {
-    background: var(--green);
-    color: white;
-  }
-  #mark-btn:disabled {
-    background: #d0d8d2;
-    color: #8a9e90;
-    cursor: not-allowed;
-  }
+/* MODES */
+#modes{background:var(--bg);padding:7px 10px 9px;display:flex;gap:6px;flex-shrink:0}
+.mbtn{flex:1;padding:7px 4px;border-radius:8px;border:1.5px solid transparent;font-size:12px;font-weight:600;cursor:pointer;background:var(--surface);color:var(--text2);-webkit-appearance:none}
+.mbtn:active{opacity:.8}
+.sd{background:var(--green-light);color:var(--green-dark);border-color:#9FE1CB}
+.ss{background:var(--amber-light);color:var(--amber);border-color:#FAC775}
+.sr{background:var(--coral-light);color:var(--coral);border-color:#F0997B}
+.sc{color:var(--red)}
+.sm{background:#f0e8ff;color:#6b21a8;border-color:#c4b5fd}
 
-  /* MODE BAR */
-  #modes {
-    background: var(--bg);
-    padding: 8px 12px 10px;
-    display: flex;
-    gap: 7px;
-    flex-shrink: 0;
-  }
-  .mode-btn {
-    flex: 1;
-    padding: 8px 4px;
-    border-radius: 8px;
-    border: 1.5px solid transparent;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    background: var(--surface);
-    color: var(--text2);
-    transition: all 0.15s;
-    -webkit-appearance: none;
-  }
-  .mode-btn:active { transform: scale(0.96); }
-  .mode-btn.sel-done { background: var(--green-light); color: var(--green-dark); border-color: #9FE1CB; }
-  .mode-btn.sel-skip { background: var(--amber-light); color: var(--amber); border-color: #FAC775; }
-  .mode-btn.sel-revisit { background: var(--coral-light); color: var(--coral); border-color: #F0997B; }
-  .mode-btn.sel-clear { background: #fce8e8; color: var(--red); border-color: #F7C1C1; }
+/* SHARED VIEW BANNER */
+#shared-banner{background:#1a4480;color:#deeaff;padding:8px 12px;font-size:13px;display:none;align-items:center;justify-content:space-between;flex-shrink:0;gap:8px}
+#shared-banner span{flex:1}
+#shared-banner button{background:var(--green);color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
 
-  /* POPUP */
-  #popup-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.55);
-    z-index: 9000;
-    align-items: flex-end;
-    justify-content: center;
-  }
-  #popup-overlay.show { display: flex; }
-  #popup-sheet {
-    background: var(--surface);
-    border-radius: 18px 18px 0 0;
-    width: 100%;
-    max-width: 480px;
-    padding: 20px 20px 32px;
-    animation: slideUp 0.25s ease;
-  }
-  @keyframes slideUp { from{transform:translateY(40px);opacity:0} to{transform:translateY(0);opacity:1} }
-  #popup-sheet h3 { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
-  #popup-sheet p { font-size: 13px; color: var(--text2); margin-bottom: 16px; }
-  #popup-sheet textarea {
-    width: 100%;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 10px;
-    font-size: 14px;
-    font-family: inherit;
-    resize: none;
-    height: 72px;
-    color: var(--text);
-    background: var(--bg);
-    margin-bottom: 12px;
-  }
-  #popup-sheet textarea:focus { outline: none; border-color: var(--green); }
-  .popup-actions { display: flex; gap: 10px; }
-  .popup-actions button {
-    flex: 1; padding: 12px; border-radius: 10px; border: none;
-    font-size: 14px; font-weight: 600; cursor: pointer;
-  }
-  #popup-cancel { background: var(--bg); color: var(--text2); }
-  #popup-confirm { background: var(--green); color: white; }
+/* SHEET */
+.sheet-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;align-items:flex-end;justify-content:center}
+.sheet-ov.show{display:flex}
+.sheet{background:var(--surface);border-radius:18px 18px 0 0;width:100%;max-width:480px;padding:20px 18px 32px;animation:slideUp .25s ease;max-height:85vh;display:flex;flex-direction:column}
+@keyframes slideUp{from{transform:translateY(40px);opacity:0}to{transform:translateY(0);opacity:1}}
+.sheet h3{font-size:17px;font-weight:700;color:var(--text);margin-bottom:4px}
+.sheet .sub{font-size:13px;color:var(--text2);margin-bottom:14px}
+.sheet-scroll{overflow-y:auto;flex:1}
 
-  /* TOAST */
-  #toast {
-    position: fixed;
-    bottom: 90px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(13,59,46,0.92);
-    color: #e8f5ee;
-    padding: 9px 18px;
-    border-radius: 999px;
-    font-size: 13px;
-    font-weight: 500;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.3s;
-    z-index: 9999;
-    white-space: nowrap;
-    backdrop-filter: blur(4px);
-  }
-  #toast.show { opacity: 1; }
+/* MARK POPUP */
+#pop-note{width:100%;border:1px solid var(--border);border-radius:8px;padding:10px;font-size:14px;font-family:inherit;resize:none;height:68px;color:var(--text);background:var(--bg);margin-bottom:12px}
+#pop-note:focus{outline:none;border-color:var(--green)}
+.pact{display:flex;gap:10px}
+.pact button{flex:1;padding:12px;border-radius:10px;border:none;font-size:14px;font-weight:600;cursor:pointer}
+.pact .cancel{background:var(--bg);color:var(--text2)}
+.pact .ok{background:var(--green);color:#fff}
 
-  /* LOCATE BUTTON */
-  #locate-btn {
-    position: absolute;
-    bottom: 190px;
-    right: 12px;
-    z-index: 900;
-    width: 42px; height: 42px;
-    border-radius: 50%;
-    border: none;
-    background: white;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-    cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 20px;
-  }
-  #locate-btn:active { transform: scale(0.93); }
+/* SAVE SHEET */
+#save-name{width:100%;border:1px solid var(--border);border-radius:8px;padding:11px 12px;font-size:15px;font-family:inherit;color:var(--text);background:var(--bg);margin-bottom:12px}
+#save-name:focus{outline:none;border-color:var(--green)}
+.save-info{background:#f0f5ff;border-radius:8px;padding:10px 12px;font-size:13px;color:#2550b0;margin-bottom:14px;line-height:1.5}
 
-  /* Leaflet popup style override */
-  .leaflet-popup-content-wrapper {
-    border-radius: 10px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
-  }
-  .leaflet-popup-content {
-    font-family: 'Segoe UI', system-ui, sans-serif;
-    font-size: 13px;
-    line-height: 1.5;
-    margin: 10px 14px;
-  }
-  .popup-title { font-weight: 700; font-size: 14px; margin-bottom: 2px; }
-  .popup-note { color: #666; font-style: italic; }
-  .popup-del {
-    display: inline-block;
-    margin-top: 6px;
-    font-size: 11px;
-    color: var(--red);
-    cursor: pointer;
-    border: none;
-    background: none;
-    padding: 0;
-    font-family: inherit;
-    text-decoration: underline;
-  }
+/* SHARE RESULT */
+#share-result{display:none;margin-top:4px}
+#share-url-box{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:13px;color:var(--text2);word-break:break-all;margin-bottom:10px;line-height:1.5}
+.share-actions{display:flex;gap:8px}
+.share-actions button{flex:1;padding:11px;border-radius:10px;border:none;font-size:13px;font-weight:600;cursor:pointer}
+#copy-btn{background:var(--green-light);color:var(--green-dark)}
+#whatsapp-btn{background:#25D366;color:#fff}
+
+/* LAYOUTS LIST */
+.layout-item{padding:12px;border-radius:10px;background:var(--bg);margin-bottom:8px}
+.li-name{font-size:14px;font-weight:600;color:var(--text);margin-bottom:3px}
+.li-meta{font-size:12px;color:var(--text2)}
+.li-actions{display:flex;gap:6px;margin-top:8px}
+.li-actions button{flex:1;padding:7px;border-radius:8px;border:none;font-size:12px;font-weight:600;cursor:pointer}
+.li-load{background:var(--green-light);color:var(--green-dark)}
+.li-share{background:#f0f5ff;color:#2550b0}
+.li-del{background:#fce8e8;color:var(--red)}
+.no-layouts{text-align:center;padding:32px 16px;color:var(--text2);font-size:14px}
+
+/* LOCATE */
+#loc-btn{position:absolute;bottom:185px;right:12px;z-index:900;width:42px;height:42px;border-radius:50%;border:none;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.2);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center}
+
+/* TOAST */
+#toast{position:fixed;bottom:88px;left:50%;transform:translateX(-50%);background:rgba(13,59,46,.93);color:#e8f5ee;padding:9px 18px;border-radius:999px;font-size:13px;font-weight:500;opacity:0;pointer-events:none;transition:opacity .3s;z-index:9999;white-space:nowrap;max-width:90vw;text-align:center}
+#toast.show{opacity:1}
+
+.spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:4px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.leaflet-popup-content-wrapper{border-radius:10px}
+.leaflet-popup-content{font-family:'Segoe UI',system-ui,sans-serif;font-size:13px;line-height:1.5;margin:10px 14px}
+.ptitle{font-weight:700;font-size:14px;margin-bottom:2px}
+.pnote{color:#666;font-style:italic;margin-top:2px}
+.pdel{display:inline-block;margin-top:6px;font-size:11px;color:var(--red);cursor:pointer;border:none;background:none;padding:0;font-family:inherit;text-decoration:underline}
 </style>
 </head>
 <body>
-<div id="app">
+
+<!-- PERMISSION SCREEN -->
+<div id="perm-screen">
+  <div style="font-size:52px;margin-bottom:16px">🗺️</div>
+  <h2>Census Field Mapper</h2>
+  <p class="lead">India Census field survey tool. Tracks your path and lets you mark houses as Done, Skipped, or Revisit.</p>
+  <div class="steps-box">
+    <strong>Location permission tip:</strong>
+    <ol>
+      <li>When you tap <strong>Start Tracking</strong> inside the app, your browser will ask for location access — tap <strong>Allow</strong></li>
+      <li>If it doesn't ask, tap the <strong>lock 🔒</strong> in the address bar → Location → Allow → Reload</li>
+      <li>Use <strong>Chrome</strong> (Android) or <strong>Safari</strong> (iPhone) for best GPS support</li>
+    </ol>
+  </div>
+  <button id="perm-btn" onclick="requestPermission()">Open Map →</button>
+  <div id="perm-err"></div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app" style="display:none">
+  <div id="config-warn">
+    ⚠️ Firebase not configured. Open the HTML file and paste your <strong>databaseURL</strong> at the top of the script section.
+  </div>
+
   <div id="header">
-    <div id="header-left">
+    <div>
       <h1>🗺 Census Field Mapper</h1>
-      <p>India Census 2025 — Field Survey Tool</p>
+      <small id="session-label">Current session</small>
     </div>
-    <div id="gps-pill">
-      <span id="gps-dot"></span>
-      <span id="gps-text">GPS off</span>
+    <div id="hdr-right">
+      <div id="gps-pill" onclick="centerOnMe()">
+        <span id="gps-dot"></span>
+        <span id="gps-text">GPS off</span>
+      </div>
+      <button id="layouts-btn" onclick="openLayouts()">📂 Layouts</button>
     </div>
+  </div>
+
+  <!-- Shared view banner -->
+  <div id="shared-banner">
+    <span id="shared-label">👁 Viewing shared layout</span>
+    <button onclick="startFresh()">+ New Session</button>
   </div>
 
   <div id="map"></div>
-  <button id="locate-btn" onclick="centerOnMe()" title="Center on my location">📍</button>
+  <button id="loc-btn" onclick="centerOnMe()" title="My location">📍</button>
 
   <div id="stats">
-    <div class="stat">
-      <div class="stat-n green" id="s-done">0</div>
-      <div class="stat-l">Done</div>
-    </div>
-    <div class="stat">
-      <div class="stat-n amber" id="s-skip">0</div>
-      <div class="stat-l">Skipped</div>
-    </div>
-    <div class="stat">
-      <div class="stat-n coral" id="s-revisit">0</div>
-      <div class="stat-l">Revisit</div>
-    </div>
-    <div class="stat">
-      <div class="stat-n" id="s-dist">0m</div>
-      <div class="stat-l">Walked</div>
-    </div>
+    <div class="stat"><div class="stat-n g" id="s-done">0</div><div class="stat-l">Done</div></div>
+    <div class="stat"><div class="stat-n a" id="s-skip">0</div><div class="stat-l">Skipped</div></div>
+    <div class="stat"><div class="stat-n c" id="s-revisit">0</div><div class="stat-l">Revisit</div></div>
+    <div class="stat"><div class="stat-n" id="s-dist">0m</div><div class="stat-l">Walked</div></div>
   </div>
 
   <div id="controls">
-    <button class="ctrl-btn" id="track-btn" onclick="toggleTracking()">
-      ▶ Start Tracking
-    </button>
-    <button class="ctrl-btn" id="mark-btn" onclick="openMarkPopup()" disabled>
-      🏠 Mark House
-    </button>
+    <button class="cbtn" id="track-btn" onclick="toggleTracking()">▶ Start</button>
+    <button class="cbtn" id="mark-btn" onclick="openMarkPop()" disabled>🏠 Mark</button>
+    <button class="cbtn" id="save-btn" onclick="openSaveSheet()">💾 Save</button>
   </div>
 
   <div id="modes">
-    <button class="mode-btn sel-done" id="mode-done" onclick="setMode('done')">✓ Done</button>
-    <button class="mode-btn" id="mode-skip" onclick="setMode('skip')">— Skip</button>
-    <button class="mode-btn" id="mode-revisit" onclick="setMode('revisit')">↩ Revisit</button>
-    <button class="mode-btn" id="mode-clear" onclick="confirmClear()">🗑 Clear</button>
+    <button class="mbtn sd" id="md-done" onclick="setMode('done')">✓ Done</button>
+    <button class="mbtn" id="md-skip" onclick="setMode('skip')">— Skip</button>
+    <button class="mbtn" id="md-revisit" onclick="setMode('revisit')">↩ Revisit</button>
+    <button class="mbtn" id="md-manual" onclick="toggleManual()">✋ Manual</button>
+    <button class="mbtn sc" id="md-clear" onclick="doClear()">🗑</button>
   </div>
 </div>
 
-<!-- Mark house popup -->
-<div id="popup-overlay">
-  <div id="popup-sheet">
-    <h3 id="popup-title">Mark House</h3>
-    <p id="popup-sub">Add an optional note for this house</p>
-    <textarea id="popup-note" placeholder="e.g. House no. 42, spoke to elderly man, needs revisit Tuesday..."></textarea>
-    <div class="popup-actions">
-      <button id="popup-cancel" onclick="closePopup()">Cancel</button>
-      <button id="popup-confirm" onclick="confirmMark()">✓ Confirm</button>
+<!-- MARK HOUSE POPUP -->
+<div class="sheet-ov" id="mark-ov">
+  <div class="sheet" style="max-height:60vh">
+    <h3 id="pop-title">Mark House</h3>
+    <p class="sub" id="pop-sub">Add an optional note, then confirm.</p>
+    <textarea id="pop-note" placeholder="e.g. House no. 42, nobody home, try evening…"></textarea>
+    <div class="pact">
+      <button class="cancel" onclick="closeMarkPop()">Cancel</button>
+      <button class="ok" onclick="confirmMark()">✓ Confirm</button>
     </div>
+  </div>
+</div>
+
+<!-- SAVE LAYOUT SHEET -->
+<div class="sheet-ov" id="save-ov">
+  <div class="sheet" style="max-height:75vh">
+    <h3>💾 Save Layout</h3>
+    <p class="sub">Give this layout a name. You'll get a shareable link anyone can open to view the map.</p>
+    <input type="text" id="save-name" placeholder="e.g. Ward 4 – Sector B, Block 12…" maxlength="80"/>
+    <div class="save-info">📤 Saved to Firebase. Anyone with the link can view — not edit.</div>
+    <div class="pact" style="margin-bottom:14px">
+      <button class="cancel" onclick="closeSaveSheet()">Cancel</button>
+      <button class="ok" id="do-save-btn" onclick="doSaveLayout()">Save &amp; Get Link</button>
+    </div>
+    <div id="share-result">
+      <div id="share-url-box"></div>
+      <div class="share-actions">
+        <button id="copy-btn" onclick="copyShareUrl()">📋 Copy Link</button>
+        <button id="whatsapp-btn" onclick="shareWhatsapp()">💬 WhatsApp</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LAYOUTS LIST SHEET -->
+<div class="sheet-ov" id="layouts-ov">
+  <div class="sheet">
+    <h3>📂 Saved Layouts</h3>
+    <p class="sub">Your saved survey areas. View or share any past layout.</p>
+    <div class="sheet-scroll" id="layouts-list"></div>
   </div>
 </div>
 
@@ -377,322 +260,531 @@
 <script>
 'use strict';
 
-let map, watchId, tracking = false;
-let currentMode = 'done';
-let pathPoints = [];
-let pathLine = null;
-let houses = [];
-let posMarker = null;
-let lastPos = null;
-let totalDist = 0;
-let houseMarkers = {};
-let houseId = 0;
+// ═══════════════════════════════════════════════════════════════════
+//  🔧 FIREBASE CONFIG — paste your databaseURL here
+//  Get it from: Firebase Console → Project Settings → Your Apps
+//  It looks like: https://YOUR-PROJECT-default-rtdb.firebaseio.com
+// ═══════════════════════════════════════════════════════════════════
+var FIREBASE_DB_URL = 'https://censusmapper-20ed9-default-rtdb.firebaseio.com/';
+// ═══════════════════════════════════════════════════════════════════
 
-const modeColors = { done: '#1D9E75', skip: '#BA7517', revisit: '#D85A30' };
-const modeLabels = { done: 'Done ✓', skip: 'Skipped', revisit: 'Revisit ↩' };
-const modeEmoji = { done: '✓', skip: '—', revisit: '↩' };
+// ── STATE ────────────────────────────────────────────────────────────────────
+var map, watchId, tracking = false, curMode = 'done';
+var pts = [], pathLine = null, houses = [], posMarker = null;
+var lastLL = null, totalDist = 0, hid = 0;
+var manualMode = false, viewOnly = false;
+var currentShareUrl = '';
+var savedLayouts = [];
 
-function makeHouseIcon(type) {
-  const c = modeColors[type];
-  const e = modeEmoji[type];
-  return L.divIcon({
-    html: `<div style="width:32px;height:32px;border-radius:50%;background:${c};color:white;
-      display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;
-      border:2.5px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);line-height:1;">${e}</div>`,
-    className: '',
-    iconSize: [32, 32],
-    iconAnchor: [16, 16]
+var mColors = { done: '#1D9E75', skip: '#BA7517', revisit: '#D85A30' };
+var mLabels = { done: 'Done', skip: 'Skipped', revisit: 'Revisit' };
+var mEmoji  = { done: '&#10003;', skip: '&mdash;', revisit: '&#8617;' };
+
+// ── FIREBASE REST API ─────────────────────────────────────────────────────────
+// Uses Firebase Realtime Database REST API — no SDK needed, just fetch()
+// Layouts stored at: /layouts/<id>.json
+// Each layout is a plain JSON object
+
+function firebaseConfigured() {
+  return FIREBASE_DB_URL && FIREBASE_DB_URL !== 'YOUR_FIREBASE_DATABASE_URL_HERE';
+}
+
+function saveToFirebase(payload) {
+  // POST to /layouts.json — Firebase auto-generates a unique push ID
+  var url = FIREBASE_DB_URL.replace(/\/$/, '') + '/layouts.json';
+  return fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  .then(function(r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  })
+  .then(function(data) {
+    // Firebase returns { "name": "-NxxxxxxxPushId" }
+    if (!data || !data.name) throw new Error('No ID returned');
+    return data.name;
   });
 }
 
-function initMap() {
-  map = L.map('map', { zoomControl: false, attributionControl: false });
-
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 21,
-    attribution: '© OpenStreetMap'
-  }).addTo(map);
-
-  // Zoom control top-left
-  L.control.zoom({ position: 'topleft' }).addTo(map);
-
-  // Small attribution bottom-left
-  L.control.attribution({ position: 'bottomleft', prefix: '© OpenStreetMap' }).addTo(map);
-
-  map.setView([20.5937, 78.9629], 5);
-  loadSaved();
+function loadFromFirebase(id) {
+  var url = FIREBASE_DB_URL.replace(/\/$/, '') + '/layouts/' + id + '.json';
+  return fetch(url)
+  .then(function(r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  })
+  .then(function(data) {
+    if (!data) throw new Error('Layout not found');
+    return data;
+  });
 }
 
+// ── PERMISSION ───────────────────────────────────────────────────────────────
+function requestPermission() {
+  if (!navigator.geolocation) {
+    var e = document.getElementById('perm-err');
+    e.style.display = 'block';
+    e.textContent = 'Your browser does not support GPS. Please use Chrome (Android) or Safari (iPhone).';
+    return;
+  }
+  // Go straight to the app — location permission will be requested
+  // once by watchPosition when the user taps Start Tracking.
+  // This avoids asking twice.
+  openApp();
+}
+
+function openApp() {
+  document.getElementById('perm-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+
+  // Show warning if Firebase not configured
+  if (!firebaseConfigured()) {
+    document.getElementById('config-warn').style.display = 'block';
+  }
+
+  loadSavedLayoutsList();
+  initMap();
+  tryWakeLock();
+
+  var params = new URLSearchParams(window.location.search);
+  var layoutId = params.get('layout');
+  if (layoutId) loadSharedLayout(layoutId);
+  else loadCurrentSession();
+}
+
+// ── MAP ───────────────────────────────────────────────────────────────────────
+function initMap() {
+  map = L.map('map', { zoomControl: false, attributionControl: false });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 21 }).addTo(map);
+  L.control.zoom({ position: 'topleft' }).addTo(map);
+  L.control.attribution({ position: 'bottomleft', prefix: '<a href="https://openstreetmap.org">© OSM</a>' }).addTo(map);
+
+  if (lastLL) { map.setView(lastLL, 18); addPosMarker(lastLL); }
+  else map.setView([20.5937, 78.9629], 5);
+
+  map.on('click', function(e) {
+    if (!manualMode || viewOnly) return;
+    lastLL = [e.latlng.lat, e.latlng.lng];
+    addPosMarker(lastLL);
+    openMarkPop();
+  });
+}
+
+function addPosMarker(ll) {
+  if (!posMarker) posMarker = L.circleMarker(ll, { radius: 10, color: '#185FA5', fillColor: '#378ADD', fillOpacity: .9, weight: 2.5 }).addTo(map);
+  else posMarker.setLatLng(ll);
+}
+
+// ── MANUAL MODE TOGGLE ────────────────────────────────────────────────────────
+function toggleManual() {
+  if (viewOnly) { toast('Shared view is read-only'); return; }
+  manualMode = !manualMode;
+  var btn = document.getElementById('md-manual');
+  if (manualMode) {
+    btn.className = 'mbtn sm';
+    btn.textContent = '✋ Manual ON';
+    if (tracking) stopTracking();
+    document.getElementById('mark-btn').disabled = false;
+    document.getElementById('gps-text').textContent = 'Manual';
+    document.getElementById('gps-dot').className = '';
+    toast('Manual mode ON — tap the map, then Mark');
+  } else {
+    btn.className = 'mbtn';
+    btn.textContent = '✋ Manual';
+    document.getElementById('mark-btn').disabled = true;
+    document.getElementById('gps-text').textContent = 'GPS off';
+    toast('Manual mode OFF');
+  }
+}
+
+// ── TRACKING ─────────────────────────────────────────────────────────────────
 function toggleTracking() {
+  if (viewOnly) { toast('Shared view — start a new session to track'); return; }
+  if (manualMode) { toast('Turn off Manual mode first'); return; }
   tracking ? stopTracking() : startTracking();
 }
 
 function startTracking() {
-  if (!navigator.geolocation) {
-    toast('❌ GPS not supported on this device');
-    return;
-  }
   tracking = true;
-  document.getElementById('track-btn').textContent = '⏸ Pause Tracking';
-  document.getElementById('track-btn').classList.add('on');
+  var b = document.getElementById('track-btn');
+  b.textContent = '⏸ Pause'; b.classList.add('on');
   document.getElementById('mark-btn').disabled = false;
   document.getElementById('gps-dot').className = 'active';
   document.getElementById('gps-text').textContent = 'Locating…';
-
-  watchId = navigator.geolocation.watchPosition(onPosition, onGpsError, {
-    enableHighAccuracy: true,
-    maximumAge: 3000,
-    timeout: 15000
-  });
+  watchId = navigator.geolocation.watchPosition(onPos, onErr, { enableHighAccuracy: true, maximumAge: 3000, timeout: 15000 });
 }
 
 function stopTracking() {
   tracking = false;
-  if (watchId != null) navigator.geolocation.clearWatch(watchId);
-  watchId = null;
-  document.getElementById('track-btn').textContent = '▶ Resume Tracking';
-  document.getElementById('track-btn').classList.remove('on');
+  if (watchId != null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+  var b = document.getElementById('track-btn');
+  b.textContent = '▶ Start'; b.classList.remove('on');
   document.getElementById('mark-btn').disabled = true;
   document.getElementById('gps-dot').className = '';
   document.getElementById('gps-text').textContent = 'Paused';
   toast('Tracking paused');
 }
 
-function onPosition(pos) {
-  const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+function onPos(pos) {
+  var lat = pos.coords.latitude, lng = pos.coords.longitude, acc = pos.coords.accuracy;
   document.getElementById('gps-dot').className = 'active';
-  document.getElementById('gps-text').textContent = '±' + Math.round(accuracy) + 'm';
-
-  const ll = [lat, lng];
-
-  if (!posMarker) {
-    posMarker = L.circleMarker(ll, {
-      radius: 10,
-      color: '#185FA5',
-      fillColor: '#378ADD',
-      fillOpacity: 0.9,
-      weight: 2.5
-    }).addTo(map).bindTooltip('You are here', { permanent: false });
-    map.setView(ll, 18);
-  } else {
-    posMarker.setLatLng(ll);
-  }
-
-  if (lastPos) {
-    const d = haversine(lastPos, ll);
+  document.getElementById('gps-text').textContent = '±' + Math.round(acc) + 'm';
+  var ll = [lat, lng];
+  addPosMarker(ll);
+  if (lastLL) {
+    var d = hav(lastLL, ll);
     if (d > 3) {
-      totalDist += d;
-      pathPoints.push(ll);
-      if (pathLine) {
-        pathLine.setLatLngs(pathPoints);
-      } else {
-        pathLine = L.polyline(pathPoints, {
-          color: '#378ADD', weight: 4, opacity: 0.65, lineJoin: 'round', lineCap: 'round'
-        }).addTo(map);
-      }
-      lastPos = ll;
-      updateDistStat();
-      savePath();
+      totalDist += d; pts.push(ll);
+      if (pathLine) pathLine.setLatLngs(pts);
+      else pathLine = L.polyline(pts, { color: '#378ADD', weight: 4, opacity: .65, lineJoin: 'round' }).addTo(map);
+      lastLL = ll; updateDist(); saveCurrentSession();
     }
-  } else {
-    lastPos = ll;
-    pathPoints.push(ll);
-  }
+  } else { lastLL = ll; pts.push(ll); map.setView(ll, 18); }
 }
 
-function onGpsError(err) {
+function onErr(err) {
   document.getElementById('gps-dot').className = 'error';
-  const msg = err.code === 1 ? 'Location permission denied. Please allow in browser settings.' :
-              err.code === 2 ? 'GPS signal unavailable' : 'GPS timeout — retrying…';
   document.getElementById('gps-text').textContent = 'Error';
-  toast('❌ ' + msg);
+  var m = err.code === 1 ? 'Permission denied' : err.code === 2 ? 'GPS unavailable' : 'GPS timeout';
+  toast('GPS: ' + m);
 }
 
 function centerOnMe() {
-  if (lastPos) {
-    map.setView(lastPos, 18);
-  } else {
-    toast('Start tracking first to get your location');
-  }
+  if (lastLL) map.setView(lastLL, 18);
+  else toast('Start tracking first');
 }
 
-// -- MARK HOUSE --
-
-function openMarkPopup() {
-  if (!lastPos) { toast('Waiting for GPS fix…'); return; }
-  const typeLabel = { done: 'Mark as Done ✓', skip: 'Mark as Skipped', revisit: 'Mark for Revisit ↩' };
-  document.getElementById('popup-title').textContent = typeLabel[currentMode];
-  document.getElementById('popup-sub').textContent = 'Tap confirm to mark your current location. Add an optional note below.';
-  document.getElementById('popup-note').value = '';
-  document.getElementById('popup-overlay').classList.add('show');
-  setTimeout(() => document.getElementById('popup-note').focus(), 300);
+// ── MARK HOUSE ────────────────────────────────────────────────────────────────
+function openMarkPop() {
+  if (viewOnly) { toast('Shared view is read-only'); return; }
+  if (!lastLL) { toast(manualMode ? 'Tap the map to pick a location first' : 'Waiting for GPS…'); return; }
+  var labels = { done: 'Mark as Done ✓', skip: 'Mark as Skipped', revisit: 'Mark for Revisit ↩' };
+  document.getElementById('pop-title').textContent = labels[curMode];
+  document.getElementById('pop-sub').textContent = manualMode ? 'Marking the location you tapped.' : 'Marking your current GPS position.';
+  document.getElementById('pop-note').value = '';
+  document.getElementById('mark-ov').classList.add('show');
 }
-
-function closePopup() {
-  document.getElementById('popup-overlay').classList.remove('show');
-}
+function closeMarkPop() { document.getElementById('mark-ov').classList.remove('show'); }
 
 function confirmMark() {
-  closePopup();
-  if (!lastPos) { toast('No GPS position yet'); return; }
-  const note = document.getElementById('popup-note').value.trim();
-  const [lat, lng] = lastPos;
-  const id = ++houseId;
-  const time = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-  const house = { id, lat, lng, type: currentMode, note, time };
-  houses.push(house);
-  addHouseMarker(house);
-  updateStats();
-  saveHouses();
-  toast('🏠 House marked as ' + modeLabels[currentMode]);
+  closeMarkPop();
+  if (!lastLL) { toast('No position yet'); return; }
+  var note = document.getElementById('pop-note').value.trim();
+  var id = ++hid;
+  var time = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+  var h = { id: id, lat: lastLL[0], lng: lastLL[1], type: curMode, note: note, time: time };
+  houses.push(h); addMarker(h, false); updateStats(); saveCurrentSession();
+  toast('Marked as ' + mLabels[curMode]);
 }
 
-function addHouseMarker(h) {
-  const typeColor = modeColors[h.type];
-  const noteHtml = h.note ? `<div class="popup-note">${h.note}</div>` : '';
-  const popupHtml = `
-    <div class="popup-title" style="color:${typeColor}">${modeLabels[h.type]}</div>
-    <div>${h.time}</div>
-    ${noteHtml}
-    <button class="popup-del" onclick="deleteHouse(${h.id})">Delete this marker</button>
-  `;
-  const marker = L.marker([h.lat, h.lng], { icon: makeHouseIcon(h.type) })
-    .addTo(map)
-    .bindPopup(popupHtml, { maxWidth: 220 });
-  houseMarkers[h.id] = marker;
-}
-
-function deleteHouse(id) {
-  const idx = houses.findIndex(h => h.id === id);
-  if (idx !== -1) houses.splice(idx, 1);
-  if (houseMarkers[id]) {
-    map.removeLayer(houseMarkers[id]);
-    delete houseMarkers[id];
-  }
-  updateStats();
-  saveHouses();
-  toast('Marker deleted');
-}
-
-// -- MODE --
-function setMode(mode) {
-  currentMode = mode;
-  ['done','skip','revisit','clear'].forEach(m => {
-    document.getElementById('mode-' + m).className = 'mode-btn' + (m === mode ? ' sel-' + m : '');
+function makeIcon(type) {
+  var c = mColors[type], e = mEmoji[type];
+  return L.divIcon({
+    html: '<div style="width:32px;height:32px;border-radius:50%;background:' + c + ';color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;border:2.5px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3)">' + e + '</div>',
+    className: '', iconSize: [32, 32], iconAnchor: [16, 16]
   });
 }
 
-// -- STATS --
+function addMarker(h, readOnly) {
+  var c = mColors[h.type];
+  var delBtn = readOnly ? '' : '<button class="pdel" onclick="delHouse(' + h.id + ')">Delete marker</button>';
+  var html = '<div class="ptitle" style="color:' + c + '">' + mLabels[h.type] + '</div><div>' + h.time + '</div>' + (h.note ? '<div class="pnote">' + h.note + '</div>' : '') + delBtn;
+  var mk = L.marker([h.lat, h.lng], { icon: makeIcon(h.type) }).addTo(map).bindPopup(html, { maxWidth: 220 });
+  window['_mk_' + h.id] = mk;
+}
+
+function delHouse(id) {
+  var idx = houses.findIndex(function(h) { return h.id === id; });
+  if (idx !== -1) houses.splice(idx, 1);
+  var mk = window['_mk_' + id];
+  if (mk) { map.removeLayer(mk); delete window['_mk_' + id]; }
+  updateStats(); saveCurrentSession(); toast('Marker deleted');
+}
+
+// ── MODE ──────────────────────────────────────────────────────────────────────
+function setMode(m) {
+  curMode = m;
+  ['done','skip','revisit'].forEach(function(x) {
+    document.getElementById('md-' + x).className = 'mbtn' + (x === m ? ' s' + x[0] : '');
+  });
+  if (!manualMode) document.getElementById('md-manual').className = 'mbtn';
+  document.getElementById('md-clear').className = 'mbtn sc';
+}
+
+// ── STATS ─────────────────────────────────────────────────────────────────────
 function updateStats() {
-  document.getElementById('s-done').textContent = houses.filter(h => h.type === 'done').length;
-  document.getElementById('s-skip').textContent = houses.filter(h => h.type === 'skip').length;
-  document.getElementById('s-revisit').textContent = houses.filter(h => h.type === 'revisit').length;
+  document.getElementById('s-done').textContent = houses.filter(function(h) { return h.type === 'done'; }).length;
+  document.getElementById('s-skip').textContent = houses.filter(function(h) { return h.type === 'skip'; }).length;
+  document.getElementById('s-revisit').textContent = houses.filter(function(h) { return h.type === 'revisit'; }).length;
 }
-function updateDistStat() {
-  const d = totalDist;
-  document.getElementById('s-dist').textContent = d >= 1000
-    ? (d / 1000).toFixed(2) + 'km'
-    : Math.round(d) + 'm';
+function updateDist() {
+  document.getElementById('s-dist').textContent = totalDist >= 1000 ? (totalDist / 1000).toFixed(2) + 'km' : Math.round(totalDist) + 'm';
 }
 
-// -- CLEAR --
-function confirmClear() {
-  if (!confirm('Clear ALL markers, path, and data?\n\nThis cannot be undone.')) return;
-  houses = [];
-  pathPoints = [];
-  totalDist = 0;
-  lastPos = null;
-  houseId = 0;
+// ── CLEAR ─────────────────────────────────────────────────────────────────────
+function doClear() {
+  if (viewOnly) { toast('Shared view is read-only — start a new session first'); return; }
+  if (!confirm('Clear current path and all markers?\nSaved layouts are not affected.')) return;
+  clearMapData(); saveCurrentSession(); toast('Cleared');
+}
+
+function clearMapData() {
+  houses = []; pts = []; totalDist = 0; hid = 0;
   if (tracking) stopTracking();
-  try {
-    localStorage.removeItem('census_houses');
-    localStorage.removeItem('census_path');
-    localStorage.removeItem('census_hid');
-  } catch(e) {}
-  location.reload();
+  if (pathLine) { map.removeLayer(pathLine); pathLine = null; }
+  if (posMarker) { map.removeLayer(posMarker); posMarker = null; }
+  lastLL = null;
+  Object.keys(window).filter(function(k) { return k.startsWith('_mk_'); }).forEach(function(k) {
+    try { map.removeLayer(window[k]); delete window[k]; } catch(e) {}
+  });
+  updateStats(); updateDist();
 }
 
-// -- PERSISTENCE --
-function saveHouses() {
-  try {
-    localStorage.setItem('census_houses', JSON.stringify(houses));
-    localStorage.setItem('census_hid', String(houseId));
-  } catch(e) {}
+// ── SAVE LAYOUT ───────────────────────────────────────────────────────────────
+function openSaveSheet() {
+  if (viewOnly) { toast('Viewing shared layout — start a new session to save'); return; }
+  if (houses.length === 0 && pts.length < 2) { toast('Nothing to save yet — track some area first'); return; }
+  if (!firebaseConfigured()) { toast('⚠️ Add your Firebase databaseURL to the file first'); return; }
+  document.getElementById('save-name').value = '';
+  document.getElementById('share-result').style.display = 'none';
+  document.getElementById('do-save-btn').disabled = false;
+  document.getElementById('do-save-btn').innerHTML = 'Save &amp; Get Link';
+  document.getElementById('save-ov').classList.add('show');
+  setTimeout(function() { document.getElementById('save-name').focus(); }, 400);
 }
-function savePath() {
-  try {
-    localStorage.setItem('census_path', JSON.stringify({ pts: pathPoints, dist: totalDist }));
-  } catch(e) {}
-}
-function loadSaved() {
-  try {
-    const hRaw = localStorage.getItem('census_houses');
-    const pRaw = localStorage.getItem('census_path');
-    const idRaw = localStorage.getItem('census_hid');
-    if (idRaw) houseId = parseInt(idRaw, 10) || 0;
+function closeSaveSheet() { document.getElementById('save-ov').classList.remove('show'); }
 
-    if (hRaw) {
-      const loaded = JSON.parse(hRaw);
-      loaded.forEach(h => {
-        houses.push(h);
-        addHouseMarker(h);
-      });
-      updateStats();
+function doSaveLayout() {
+  var name = document.getElementById('save-name').value.trim();
+  if (!name) { toast('Please enter a name for this layout'); return; }
+
+  var btn = document.getElementById('do-save-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span>Saving…';
+
+  var payload = {
+    name: name,
+    date: new Date().toLocaleDateString('en-IN'),
+    savedAt: Date.now(),
+    pts: pts,
+    dist: totalDist,
+    houses: houses,
+    stats: {
+      done: houses.filter(function(h) { return h.type === 'done'; }).length,
+      skip: houses.filter(function(h) { return h.type === 'skip'; }).length,
+      revisit: houses.filter(function(h) { return h.type === 'revisit'; }).length
     }
-    if (pRaw) {
-      const p = JSON.parse(pRaw);
-      if (p.pts && p.pts.length > 1) {
-        pathPoints = p.pts;
-        totalDist = p.dist || 0;
-        pathLine = L.polyline(pathPoints, {
-          color: '#378ADD', weight: 4, opacity: 0.65, lineJoin: 'round', lineCap: 'round'
-        }).addTo(map);
-        map.fitBounds(pathLine.getBounds(), { padding: [40, 40] });
-        updateDistStat();
-      }
+  };
+
+  saveToFirebase(payload)
+    .then(function(layoutId) {
+      savedLayouts.push({ name: name, layoutId: layoutId, date: payload.date, stats: payload.stats });
+      persistLayoutsList();
+
+      var shareUrl = window.location.origin + window.location.pathname + '?layout=' + layoutId;
+      currentShareUrl = shareUrl;
+      document.getElementById('share-url-box').textContent = shareUrl;
+      document.getElementById('share-result').style.display = 'block';
+      btn.disabled = false;
+      btn.innerHTML = '✓ Saved!';
+      document.getElementById('session-label').textContent = name;
+      toast('Saved to Firebase! Share the link below.');
+    })
+    .catch(function(err) {
+      btn.disabled = false;
+      btn.innerHTML = 'Save &amp; Get Link';
+      console.error('Firebase save error:', err);
+      toast('❌ Save failed — check internet connection');
+    });
+}
+
+function copyShareUrl() {
+  if (!currentShareUrl) return;
+  navigator.clipboard.writeText(currentShareUrl).then(function() {
+    toast('✅ Link copied!');
+  }).catch(function() {
+    var inp = document.createElement('input');
+    inp.value = currentShareUrl;
+    document.body.appendChild(inp);
+    inp.select(); document.execCommand('copy');
+    document.body.removeChild(inp);
+    toast('✅ Link copied!');
+  });
+}
+
+function shareWhatsapp() {
+  if (!currentShareUrl) return;
+  var name = document.getElementById('save-name').value.trim() || 'Census Layout';
+  var msg = '📍 *Census Survey Layout: ' + name + '*\n\nView the mapped area and marked houses:\n' + currentShareUrl;
+  window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+}
+
+// ── LOAD SHARED LAYOUT ────────────────────────────────────────────────────────
+function loadSharedLayout(layoutId) {
+  viewOnly = true;
+  document.getElementById('shared-banner').style.display = 'flex';
+  document.getElementById('track-btn').style.opacity = '.4';
+  document.getElementById('mark-btn').disabled = true;
+  document.getElementById('save-btn').style.opacity = '.4';
+  document.getElementById('md-manual').style.opacity = '.4';
+  var banner = document.getElementById('shared-label');
+  banner.textContent = '⏳ Loading shared layout…';
+
+  loadFromFirebase(layoutId)
+    .then(function(rec) {
+      renderLayout(rec, true);
+      banner.textContent = '👁 Viewing: ' + rec.name + ' (' + rec.date + ')';
+      document.getElementById('session-label').textContent = rec.name;
+    })
+    .catch(function(err) {
+      console.error(err);
+      banner.textContent = '❌ Could not load layout';
+      toast('Failed to load — check the link or internet');
+    });
+}
+
+function renderLayout(rec, readOnly) {
+  clearMapData();
+  if (rec.pts && rec.pts.length > 1) {
+    pts = rec.pts; totalDist = rec.dist || 0;
+    pathLine = L.polyline(pts, { color: '#378ADD', weight: 4, opacity: .65 }).addTo(map);
+    map.fitBounds(pathLine.getBounds(), { padding: [40, 40] });
+  } else if (rec.houses && rec.houses.length > 0) {
+    // No path but has houses — fit to house markers
+    var group = L.featureGroup();
+    rec.houses.forEach(function(h) { group.addLayer(L.marker([h.lat, h.lng])); });
+    map.fitBounds(group.getBounds(), { padding: [60, 60] });
+  }
+  if (rec.houses) {
+    rec.houses.forEach(function(h) {
+      houses.push(h);
+      if (h.id > hid) hid = h.id;
+      addMarker(h, readOnly);
+    });
+  }
+  updateStats(); updateDist();
+}
+
+function startFresh() {
+  viewOnly = false;
+  window.history.replaceState({}, '', window.location.origin + window.location.pathname);
+  document.getElementById('shared-banner').style.display = 'none';
+  document.getElementById('track-btn').style.opacity = '';
+  document.getElementById('save-btn').style.opacity = '';
+  document.getElementById('md-manual').style.opacity = '';
+  clearMapData(); saveCurrentSession();
+  document.getElementById('session-label').textContent = 'Current session';
+  toast('New session started');
+}
+
+// ── LAYOUTS LIST ──────────────────────────────────────────────────────────────
+function openLayouts() { renderLayoutsList(); document.getElementById('layouts-ov').classList.add('show'); }
+
+function renderLayoutsList() {
+  var el = document.getElementById('layouts-list');
+  if (savedLayouts.length === 0) {
+    el.innerHTML = '<div class="no-layouts">No saved layouts yet.<br><br>Track an area then tap <strong>💾 Save</strong> to save and get a shareable link.</div>';
+    return;
+  }
+  el.innerHTML = savedLayouts.slice().reverse().map(function(l, ri) {
+    var i = savedLayouts.length - 1 - ri;
+    var shareUrl = window.location.origin + window.location.pathname + '?layout=' + l.layoutId;
+    return '<div class="layout-item">'
+      + '<div class="li-name">' + esc(l.name) + '</div>'
+      + '<div class="li-meta">' + l.date + ' &nbsp;·&nbsp; ✓' + (l.stats.done||0) + ' —' + (l.stats.skip||0) + ' ↩' + (l.stats.revisit||0) + '</div>'
+      + '<div class="li-actions">'
+      + '<button class="li-load" onclick="loadLayoutById(\'' + l.layoutId + '\')">👁 View</button>'
+      + '<button class="li-share" onclick="shareLayout(\'' + encodeURIComponent(shareUrl) + '\',\'' + encodeURIComponent(l.name) + '\')">📤 Share</button>'
+      + '<button class="li-del" onclick="deleteLayoutEntry(' + i + ')">🗑</button>'
+      + '</div></div>';
+  }).join('');
+}
+
+function loadLayoutById(layoutId) {
+  document.getElementById('layouts-ov').classList.remove('show');
+  viewOnly = true;
+  document.getElementById('shared-banner').style.display = 'flex';
+  document.getElementById('track-btn').style.opacity = '.4';
+  document.getElementById('mark-btn').disabled = true;
+  document.getElementById('save-btn').style.opacity = '.4';
+  document.getElementById('md-manual').style.opacity = '.4';
+  document.getElementById('shared-label').textContent = '⏳ Loading…';
+
+  loadFromFirebase(layoutId)
+    .then(function(rec) {
+      renderLayout(rec, false);
+      document.getElementById('shared-label').textContent = '📂 Loaded: ' + rec.name;
+      document.getElementById('session-label').textContent = rec.name;
+      toast('Layout loaded: ' + rec.name);
+    })
+    .catch(function() { toast('Failed to load layout'); });
+}
+
+function shareLayout(encodedUrl, encodedName) {
+  var url = decodeURIComponent(encodedUrl);
+  var name = decodeURIComponent(encodedName);
+  if (navigator.share) {
+    navigator.share({ title: 'Census Layout: ' + name, url: url }).catch(function() {});
+  } else {
+    var msg = '📍 *Census Survey Layout: ' + name + '*\n\nView the mapped area:\n' + url;
+    window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+  }
+}
+
+function deleteLayoutEntry(idx) {
+  if (!confirm('Remove "' + savedLayouts[idx].name + '" from your list?\n(The shared link will still work.)')) return;
+  savedLayouts.splice(idx, 1);
+  persistLayoutsList();
+  renderLayoutsList();
+  toast('Removed from list');
+}
+
+// ── LOCAL PERSISTENCE ─────────────────────────────────────────────────────────
+function saveCurrentSession() {
+  try { localStorage.setItem('cm_session', JSON.stringify({ pts: pts, dist: totalDist, houses: houses, hid: hid })); } catch(e) {}
+}
+function loadCurrentSession() {
+  try {
+    var raw = localStorage.getItem('cm_session');
+    if (!raw) return;
+    var s = JSON.parse(raw);
+    pts = s.pts || []; totalDist = s.dist || 0; hid = s.hid || 0;
+    if (s.houses) s.houses.forEach(function(h) { houses.push(h); addMarker(h, false); });
+    if (pts.length > 1) {
+      pathLine = L.polyline(pts, { color: '#378ADD', weight: 4, opacity: .65 }).addTo(map);
+      if (!lastLL) map.fitBounds(pathLine.getBounds(), { padding: [40, 40] });
     }
-    if (houses.length > 0 || pathPoints.length > 0) {
-      toast('✅ Previous session loaded');
-    }
+    updateStats(); updateDist();
+    if (houses.length > 0 || pts.length > 0) toast('Previous session restored');
   } catch(e) {}
 }
-
-// -- UTILS --
-function haversine(a, b) {
-  const R = 6371000;
-  const dLat = (b[0] - a[0]) * Math.PI / 180;
-  const dLng = (b[1] - a[1]) * Math.PI / 180;
-  const x = Math.sin(dLat / 2) ** 2
-    + Math.cos(a[0] * Math.PI / 180) * Math.cos(b[0] * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+function loadSavedLayoutsList() {
+  try { savedLayouts = JSON.parse(localStorage.getItem('cm_layouts') || '[]'); } catch(e) { savedLayouts = []; }
+}
+function persistLayoutsList() {
+  try { localStorage.setItem('cm_layouts', JSON.stringify(savedLayouts)); } catch(e) {}
 }
 
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function hav(a, b) {
+  var R = 6371000, dLat = (b[0]-a[0])*Math.PI/180, dLng = (b[1]-a[1])*Math.PI/180;
+  var s = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(a[0]*Math.PI/180)*Math.cos(b[0]*Math.PI/180)*Math.sin(dLng/2)*Math.sin(dLng/2);
+  return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1-s));
+}
 function toast(msg) {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.classList.add('show');
-  clearTimeout(el._t);
-  el._t = setTimeout(() => el.classList.remove('show'), 2800);
+  var el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(el._t); el._t = setTimeout(function() { el.classList.remove('show'); }, 3200);
 }
+function tryWakeLock() { try { if ('wakeLock' in navigator) navigator.wakeLock.request('screen'); } catch(e) {} }
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-// Close popup on overlay click
-document.getElementById('popup-overlay').addEventListener('click', function(e) {
-  if (e.target === this) closePopup();
-});
-
-// Keep screen awake if Wake Lock API available
-async function requestWakeLock() {
-  try {
-    if ('wakeLock' in navigator) {
-      await navigator.wakeLock.request('screen');
-    }
-  } catch(e) {}
-}
-
-window.addEventListener('load', () => {
-  initMap();
-  requestWakeLock();
+['mark-ov','save-ov','layouts-ov'].forEach(function(id) {
+  document.getElementById(id).addEventListener('click', function(e) { if (e.target === this) this.classList.remove('show'); });
 });
 </script>
 </body>
 </html>
+
