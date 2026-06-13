@@ -134,8 +134,9 @@ Existing mapping tools were either too complex, required app installs,
 or didn't work well for simple field survey use on a basic smartphone browser. 
 So i built this instead — a lightweight, no-install tool that any enumerator can open on their phone and start using immediately.
 
-**The entire app was designed and built with the help of **Claude** (by Anthropic)**, 
+**The entire app was designed and built with the help of **Claude** (by Anthropic)**, so i dont have any credit in this, i just
+thought of this idea and then used claude to shape my idea.
 
-developed over multiple iterations based on real feedback from actual field use requirements — fixing GPS permission issues, 
+It is developed over multiple iterations based on real feedback from actual field use requirements — fixing GPS permission issues, 
 adding layout saving, Firebase integration, and WhatsApp sharing along the way.
 If you're an enumerator, supervisor, or anyone doing similar field mapping work and find this useful, feel free to use it.
